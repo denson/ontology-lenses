@@ -12,7 +12,7 @@ Colors and shapes identify entity types. Ringed anchors persist across lenses; s
 
 Tap **Structure**, **Activity**, or **Evidence** to switch immediately and hold the same view for comparison. Each lens has a short explanation and stronger visual emphasis: blue/green structure, orange activity, or purple evidence. Dim entities still exist.
 
-Use **Auto** to rotate and cycle through the lenses, drag to orbit, or **Send a thought** to light up the connections. **Play** resumes motion; **Pause** freezes it. Reduced-motion preferences are respected.
+Use **Auto** to rotate and cycle through the lenses, drag to orbit, or **Send a query** to light up the connections. **Play** resumes motion; **Pause** freezes it. Reduced-motion preferences are respected.
 
 Scroll the mouse wheel or pinch with two fingers over the artwork to zoom in and out (0.6x–5x). One-finger dragging still orbits the graph. These gestures work while paused, and the page scrolls normally outside the artwork.
 

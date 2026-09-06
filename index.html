@@ -1056,7 +1056,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
   </div>
   <div class="viz-row af-toolbar">
     <button type="button" class="btn" data-play>Pause</button>
-    <button type="button" class="btn" data-thought>Send a thought</button>
+    <button type="button" class="btn" data-thought>Send a query</button>
     <span class="text-small text-muted">Drag to orbit · Scroll or pinch to zoom</span>
   </div>
   <div class="text-small text-muted af-hint" data-view-state>Tap a lens to compare the same view. Auto rotates and cycles.</div>
@@ -1580,7 +1580,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
       burstUntil=running ? 0 : 10.7;
       lastTick=0;
       dirty=true;
-      status.textContent='A thought is spreading through the visible relationships and ontology mappings.';
+      status.textContent='A query pulse is spreading through the visible relationships and ontology mappings.';
       schedule();
     });
     canvas.addEventListener('pointerdown',event=>{
