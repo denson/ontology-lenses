@@ -1044,7 +1044,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     <div class="text-small text-muted" data-lens-detail>Blue actors and green assets stand out, grouped by type.</div>
   </div>
   <canvas role="img" aria-describedby="af-description">Twenty-five knowledge networks with persistent entities and changing ontology lenses.</canvas>
-  <span id="af-description" class="sr-only">Illustrative ontology lenses over the same persistent entities in a three-dimensional constellation. The central cluster is three times its original size. Blue circles are actors, green squares assets, orange diamonds activities, and purple triangles evidence. Ringed anchors persist across every lens. Solid lines are relationships within a network; dashed lines illustrate ontology mappings between networks. Structure shows classification, Activity shows participation and use, and Evidence shows support. A wave of light changes which entities and relationships are emphasized; dim nodes still exist. Drag to orbit.</span>
+  <span id="af-description" class="sr-only">Illustrative ontology lenses over the same persistent entities in a three-dimensional constellation. The central cluster is three times its original size. Blue circles are actors, green squares assets, orange diamonds activities, and purple triangles evidence. Ringed anchors persist across every lens. Solid lines are relationships within a network; dashed lines illustrate ontology mappings between networks. Structure shows classification, Activity shows participation and use, and Evidence shows support. A wave of light changes which entities and relationships are emphasized; dim nodes still exist. Drag to orbit. Scroll the mouse wheel or pinch with two fingers over the artwork to zoom.</span>
   <div class="viz-row text-small af-legend" aria-label="Entity types">
     <span><span class="af-actor" aria-hidden="true">●</span> Actor</span>
     <span><span class="af-asset" aria-hidden="true">■</span> Asset</span>
@@ -1057,7 +1057,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
   <div class="viz-row af-toolbar">
     <button type="button" class="btn" data-play>Pause</button>
     <button type="button" class="btn" data-thought>Send a thought</button>
-    <span class="text-small text-muted">Drag to orbit</span>
+    <span class="text-small text-muted">Drag to orbit · Scroll or pinch to zoom</span>
   </div>
   <div class="text-small text-muted af-hint" data-view-state>Tap a lens to compare the same view. Auto rotates and cycles.</div>
   <span class="sr-only" role="status" aria-live="polite" data-status></span>
@@ -1066,7 +1066,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
 <style>
   #associative-field { width: 100%; }
   #associative-field .af-title { justify-content: space-between; margin-bottom: 12px; }
-  #associative-field canvas { display: block; width: 100%; aspect-ratio: 6 / 5; touch-action: pan-y; cursor: grab; }
+  #associative-field canvas { display: block; width: 100%; aspect-ratio: 6 / 5; touch-action: none; cursor: grab; }
   #associative-field canvas:active { cursor: grabbing; }
   #associative-field .af-toolbar { margin-top: 12px; }
   #associative-field .af-legend { margin-top: 8px; }
@@ -1095,6 +1095,8 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
   let time = 0, signalTime = 1.15, burstUntil = 0;
   let frame = 0, lastTick = 0, lastDraw = 0;
   let yaw = -0.35, pitch = 0.24, drag = null;
+  let zoom = 1, pinch = null;
+  const pointers = new Map();
   const lenses = [
     { name: 'Structure', question: 'what kinds of things are here?', detail: 'Blue actors and green assets stand out, grouped by type.' },
     { name: 'Activity', question: 'who uses what?', detail: 'Orange activities light up their participants and resources.' },
@@ -1116,6 +1118,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     uniform float signalTime;
     uniform float pulseEnabled;
     uniform vec2 orbit;
+    uniform float zoom;
     uniform vec3 paper;
     uniform vec3 ink;
     uniform vec3 conceptColor;
@@ -1214,7 +1217,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     }
     vec3 project(vec3 p) {
       p = camera * worldPoint(p);
-      float s = 1.8 / (15.2 + p.z);
+      float s = 1.8 * zoom / (15.2 + p.z);
       return vec3(p.xy * s, s);
     }
     void paint(float amount, vec3 color) {
@@ -1248,7 +1251,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
       if (presence < 0.001) return;
       vec3 q = project(p);
       float d = length(uv-q.xy);
-      float focus = smoothstep(0.083,0.195,q.z);
+      float focus = smoothstep(0.083,0.195,q.z/zoom);
       float minimumRadius = (importance > 0.8 ? 0.28+0.55*focus : 0.18+0.35*focus)*1.65/resolution.y;
       float r = max(size*q.z*networkScale*2.5,minimumRadius);
       if (d > r*28.0) return;
@@ -1302,7 +1305,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
       float front = mod(signalTime,11.0)-networkDelay-arrive;
       float spark = exp(-front*front*95.0);
       float wake = exp(-max(front,0.0)*5.0)*step(0.0,front);
-      float focus = smoothstep(0.083,0.195,depth);
+      float focus = smoothstep(0.083,0.195,depth/zoom);
       depthOpacity = mix(0.22,1.3,focus);
       float opacity = (0.13+0.38*focus)*importance;
       paint(line*opacity + soft*opacity*0.09, mix(edgeColor,ink,0.12));
@@ -1326,8 +1329,8 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
       // Skip distant networks for this pixel; each network remains procedural.
       vec3 centerView = camera*networkOffset;
       float depth = 15.2+centerView.z;
-      vec2 centerScreen = centerView.xy*1.8/depth;
-      float bound = 3.0*networkScale*1.8/(depth-3.0*networkScale)*(1.0+length(centerView.xy)/depth);
+      vec2 centerScreen = centerView.xy*1.8*zoom/depth;
+      float bound = 3.0*networkScale*1.8*zoom/(depth-3.0*networkScale)*(1.0+length(centerView.xy)/depth);
       if (length(uv-centerScreen)>bound) return;
       vec3 center = vec3(0.0);
       for (int group=0; group<12; ++group) {
@@ -1483,6 +1486,23 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     }
     schedule();
   }
+  function setZoom(value) {
+    zoom=Math.max(0.6,Math.min(5,value));
+    dirty=true;
+    schedule();
+  }
+  function rebaseGesture() {
+    const points=[...pointers.entries()];
+    drag=null;
+    pinch=null;
+    if (points.length>=2) {
+      const a=points[0][1], b=points[1][1];
+      pinch={distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),zoom};
+    } else if (points.length===1) {
+      const [id,point]=points[0];
+      drag={id,x:point.x,y:point.y,yaw,pitch};
+    }
+  }
   function draw() {
     gl.viewport(0,0,canvas.width,canvas.height);
     gl.uniform2f(locations.resolution,canvas.width,canvas.height);
@@ -1491,6 +1511,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     gl.uniform1f(locations.signalTime,signalTime);
     gl.uniform1f(locations.pulseEnabled,running || burstUntil > 0 ? 1 : 0);
     gl.uniform2f(locations.orbit,yaw,pitch);
+    gl.uniform1f(locations.zoom,zoom);
     gl.drawArrays(gl.TRIANGLES,0,3);
     dirty = false;
   }
@@ -1530,7 +1551,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     const position=gl.getAttribLocation(program,'position');
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
-    locations=Object.fromEntries(['resolution','time','lensState','signalTime','pulseEnabled','orbit','paper','ink','conceptColor','associationColor','activationColor','greenColor','redColor','yellowColor'].map(name=>[name,gl.getUniformLocation(program,name)]));
+    locations=Object.fromEntries(['resolution','time','lensState','signalTime','pulseEnabled','orbit','zoom','paper','ink','conceptColor','associationColor','activationColor','greenColor','redColor','yellowColor'].map(name=>[name,gl.getUniformLocation(program,name)]));
     syncControls(); syncTheme(); resize();
     new ResizeObserver(resize).observe(canvas);
     new MutationObserver(syncTheme).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
@@ -1564,17 +1585,37 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     });
     canvas.addEventListener('pointerdown',event=>{
       if (event.button!==0) return;
-      drag={id:event.pointerId,x:event.clientX,y:event.clientY,yaw,pitch};
+      pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
       canvas.setPointerCapture(event.pointerId);
+      rebaseGesture();
     });
     canvas.addEventListener('pointermove',event=>{
+      if (!pointers.has(event.pointerId)) return;
+      pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if (pinch && pointers.size>=2) {
+        const [a,b]=[...pointers.values()];
+        setZoom(pinch.zoom*Math.hypot(a.x-b.x,a.y-b.y)/pinch.distance);
+        return;
+      }
       if (!drag || drag.id!==event.pointerId) return;
       yaw=drag.yaw+(event.clientX-drag.x)*0.008;
       pitch=Math.max(-1.45,Math.min(1.45,drag.pitch+(event.clientY-drag.y)*0.008));
       dirty=true;schedule();
     });
-    canvas.addEventListener('pointerup',()=>{drag=null;});
-    canvas.addEventListener('pointercancel',()=>{drag=null;});
+    function endPointer(event) {
+      if (!pointers.delete(event.pointerId)) return;
+      rebaseGesture();
+    }
+    canvas.addEventListener('pointerup',endPointer);
+    canvas.addEventListener('pointercancel',endPointer);
+    canvas.addEventListener('lostpointercapture',endPointer);
+    canvas.addEventListener('wheel',event=>{
+      event.preventDefault();
+      const unit=event.deltaMode===1 ? 16 : (event.deltaMode===2 ? canvas.clientHeight : 1);
+      const delta=Math.max(-600,Math.min(600,event.deltaY*unit));
+      setZoom(zoom*Math.exp(-delta*0.0018));
+    },{passive:false});
+    window.addEventListener('blur',()=>{pointers.clear();rebaseGesture();});
     reduced.addEventListener('change',()=>{if(reduced.matches){running=false;burstUntil=0;syncControls(true);}});
     canvas.addEventListener('webglcontextlost',event=>{
       event.preventDefault();

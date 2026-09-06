@@ -14,6 +14,8 @@ Tap **Structure**, **Activity**, or **Evidence** to switch immediately and hold 
 
 Use **Auto** to rotate and cycle through the lenses, drag to orbit, or **Send a thought** to light up the connections. **Play** resumes motion; **Pause** freezes it. Reduced-motion preferences are respected.
 
+Scroll the mouse wheel or pinch with two fingers over the artwork to zoom in and out (0.6x–5x). One-finger dragging still orbits the graph. These gestures work while paused, and the page scrolls normally outside the artwork.
+
 The artwork is an original procedural GLSL visualization inspired by the short-shader art form. It runs entirely in the browser, without analytics, remote data, external libraries, or a server. A browser with WebGL support is required.
 
 ## Hosting
