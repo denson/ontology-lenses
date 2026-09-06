@@ -1021,7 +1021,7 @@ svg.lucide {
   color: var(--destructive);
 }
 
-html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,max(360px,calc(120svh - 252px)))}</style>
+html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,max(360px,calc(120svh - 324px)))}</style>
 <meta name="description" content="Explore a rotating 3D knowledge constellation through Structure, Activity, and Evidence lenses. Shared entities persist as their visible relationships change.">
 <meta property="og:title" content="Ontology lenses">
 <meta property="og:description" content="Explore a rotating 3D knowledge constellation through Structure, Activity, and Evidence lenses. Shared entities persist as their visible relationships change.">
@@ -1033,16 +1033,15 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     <span>Ontology lenses</span>
     <span class="text-small text-muted">Illustrative · 25 networks</span>
   </div>
-  <div class="viz-row">
-    <label class="form-label">Lens
-      <select class="form-select" data-lens>
-        <option value="auto">Cycle lenses</option>
-        <option value="0">Structure</option>
-        <option value="1">Activity</option>
-        <option value="2">Evidence</option>
-      </select>
-    </label>
-    <span class="text-small" role="status" aria-live="polite" data-lens-state>Structure · classification</span>
+  <div class="viz-row" role="group" aria-label="Choose an ontology lens">
+    <button type="button" class="btn" data-lens="auto" aria-pressed="true">Auto</button>
+    <button type="button" class="btn" data-lens="0" aria-pressed="false">Structure</button>
+    <button type="button" class="btn" data-lens="1" aria-pressed="false">Activity</button>
+    <button type="button" class="btn" data-lens="2" aria-pressed="false">Evidence</button>
+  </div>
+  <div class="af-caption" role="status" aria-live="polite">
+    <div data-lens-state>Structure: what kinds of things are here?</div>
+    <div class="text-small text-muted" data-lens-detail>Blue actors and green assets stand out, grouped by type.</div>
   </div>
   <canvas role="img" aria-describedby="af-description">Twenty-five knowledge networks with persistent entities and changing ontology lenses.</canvas>
   <span id="af-description" class="sr-only">Illustrative ontology lenses over the same persistent entities in a three-dimensional constellation. The central cluster is three times its original size. Blue circles are actors, green squares assets, orange diamonds activities, and purple triangles evidence. Ringed anchors persist across every lens. Solid lines are relationships within a network; dashed lines illustrate ontology mappings between networks. Structure shows classification, Activity shows participation and use, and Evidence shows support. A wave of light changes which entities and relationships are emphasized; dim nodes still exist. Drag to orbit.</span>
@@ -1060,6 +1059,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     <button type="button" class="btn" data-thought>Send a thought</button>
     <span class="text-small text-muted">Drag to orbit</span>
   </div>
+  <div class="text-small text-muted af-hint" data-view-state>Tap a lens to compare the same view. Auto rotates and cycles.</div>
   <span class="sr-only" role="status" aria-live="polite" data-status></span>
   <p role="alert" class="text-destructive" data-error hidden></p>
 </div>
@@ -1070,6 +1070,8 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
   #associative-field canvas:active { cursor: grabbing; }
   #associative-field .af-toolbar { margin-top: 12px; }
   #associative-field .af-legend { margin-top: 8px; }
+  #associative-field .af-caption { margin-top: 12px; }
+  #associative-field .af-hint { margin-top: 8px; }
   #associative-field .af-actor { color: var(--blue); }
   #associative-field .af-asset { color: var(--green); }
   #associative-field .af-activity { color: var(--orange); }
@@ -1081,8 +1083,10 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
   const canvas = root.querySelector('canvas');
   const play = root.querySelector('[data-play]');
   const thought = root.querySelector('[data-thought]');
-  const lens = root.querySelector('[data-lens]');
+  const lensButtons = [...root.querySelectorAll('[data-lens]')];
   const lensLabel = root.querySelector('[data-lens-state]');
+  const lensDetail = root.querySelector('[data-lens-detail]');
+  const viewState = root.querySelector('[data-view-state]');
   const status = root.querySelector('[data-status]');
   const error = root.querySelector('[data-error]');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -1092,10 +1096,11 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
   let frame = 0, lastTick = 0, lastDraw = 0;
   let yaw = -0.35, pitch = 0.24, drag = null;
   const lenses = [
-    { name: 'Structure', detail: 'classification' },
-    { name: 'Activity', detail: 'participation & use' },
-    { name: 'Evidence', detail: 'support & provenance' }
+    { name: 'Structure', question: 'what kinds of things are here?', detail: 'Blue actors and green assets stand out, grouped by type.' },
+    { name: 'Activity', question: 'who uses what?', detail: 'Orange activities light up their participants and resources.' },
+    { name: 'Evidence', question: 'what supports this?', detail: 'Purple evidence lights up the things it supports.' }
   ];
+  let lensMode = 'auto';
   let lensFrom = 0, lensTo = 0, lensProgress = 1, lensHold = 0;
 
   const vertexSource = `
@@ -1109,6 +1114,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     uniform float time;
     uniform vec3 lensState;
     uniform float signalTime;
+    uniform float pulseEnabled;
     uniform vec2 orbit;
     uniform vec3 paper;
     uniform vec3 ink;
@@ -1134,6 +1140,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     float depthOpacity;
     float nodeType;
     float linkStyle;
+    vec3 edgeColor;
 
     vec3 typeColor(float kind) {
       if (kind < 0.5) return conceptColor;
@@ -1158,10 +1165,10 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
       return mix(lensVector(lensState.x),lensVector(lensState.y),sweepAt(world));
     }
     float relevance(vec3 p, float kind) {
-      vec3 weights = vec3(1.0,0.85,0.32);
-      if (kind > 0.5) weights = vec3(1.0,0.78,0.32);
-      if (kind > 1.5) weights = vec3(0.28,1.0,0.48);
-      if (kind > 2.5) weights = vec3(0.16,0.18,1.0);
+      vec3 weights = vec3(1.45,0.24,0.045);
+      if (kind > 0.5) weights = vec3(1.30,0.20,0.045);
+      if (kind > 1.5) weights = vec3(0.045,1.65,0.18);
+      if (kind > 2.5) weights = vec3(0.025,0.025,1.65);
       return dot(lensAt(worldPoint(p)),weights);
     }
     float lensWeight(vec3 pa, vec3 pb, float index) {
@@ -1217,7 +1224,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     }
     float activation(float arrival) {
       float d = mod(signalTime, 11.0) - networkDelay - arrival;
-      return exp(-d*d*16.0);
+      return exp(-d*d*16.0)*pulseEnabled;
     }
     vec3 hub(float id) {
       float a = id * 2.399963;
@@ -1261,9 +1268,9 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
       float lighting = 0.35+0.65*max(0.0,dot(vec3(normalXY,normalZ),normalize(vec3(-0.45,0.65,0.6))));
       float glow = exp(-d*d/(r*r*18.0));
       float halo = exp(-d*d/(r*r*160.0));
-      paint(glow*(0.18+fire*0.6)*(0.4+focus), tint);
-      paint(halo*(0.012+fire*0.05)*importance, tint);
-      paint(core*(0.95+focus*1.4+fire*2.0)*lighting, mix(tint,ink,0.12+fire*0.5));
+      paint(glow*(0.12+fire*0.45)*(0.4+focus), tint);
+      paint(halo*(0.004+fire*0.025)*importance, tint);
+      paint(core*(1.25+focus*1.6+fire*2.0)*lighting, mix(tint,ink,0.06+fire*0.35));
       float sweep = sweepAt(worldPoint(p));
       float sweeping = step(0.5,abs(lensState.x-lensState.y))*4.0*sweep*(1.0-sweep);
       paint(glow*sweeping*0.85, mix(tint,ink,0.6));
@@ -1298,13 +1305,14 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
       float focus = smoothstep(0.083,0.195,depth);
       depthOpacity = mix(0.22,1.3,focus);
       float opacity = (0.13+0.38*focus)*importance;
-      paint(line*opacity + soft*opacity*0.09, mix(clusterColor,ink,0.58));
-      paint(line*(spark*3.0+wake*0.22) + soft*spark*0.38, pulseColor);
+      paint(line*opacity + soft*opacity*0.09, mix(edgeColor,ink,0.12));
+      paint((line*(spark*2.0+wake*0.16) + soft*spark*0.24)*pulseEnabled, pulseColor);
     }
     void relation(vec3 pa, vec3 pb, float ta, float tb, float index, float importance) {
       presence = lensWeight(pa,pb,index);
       linkStyle = 0.0;
-      edge(pa,pb,ta,tb,importance);
+      edgeColor = index < 0.5 ? mix(conceptColor,greenColor,0.5) : (index < 1.5 ? activationColor : associationColor);
+      edge(pa,pb,ta,tb,importance*1.45);
     }
     void network(float id) {
       networkId = id;
@@ -1360,7 +1368,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
           nodeType = kind;
           node(p,0.014+hash3(g*71.0+b).x*0.008,tp,1.0);
         }
-        presence = 1.0;
+        presence = max(0.12,relevance(h,hubType));
         clusterColor = typeColor(hubType);
         nodeType = hubType;
         node(h,0.033,th,1.8);
@@ -1382,15 +1390,16 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
       networkDelay = 0.0;
       presence = 1.0;
       linkStyle = 1.0;
+      edgeColor = ink;
       for (int bridge=1; bridge<25; ++bridge) {
         float id = float(bridge);
         float parent = floor((id-1.0)/3.0);
         clusterColor = ink;
         pulseColor = ink;
-        edge(networkCenter(parent),networkCenter(id),networkArrival(parent),networkArrival(id),0.8);
+        edge(networkCenter(parent),networkCenter(id),networkArrival(parent),networkArrival(id),0.38);
         if (mod(id,3.0)<0.5) {
           float other = mod(id+7.0,25.0);
-          edge(networkCenter(id),networkCenter(other),6.5,8.7,0.4);
+          edge(networkCenter(id),networkCenter(other),6.5,8.7,0.2);
         }
       }
       // 4,371 persistent entities; lenses change emphasis and relation sets.
@@ -1434,11 +1443,16 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     play.textContent = running ? 'Pause' : 'Play';
     play.setAttribute('aria-label',running ? 'Pause animation' : 'Play animation');
     if (announce) status.textContent = running ? 'Animation playing.' : 'Animation paused.';
+    viewState.textContent = running
+      ? (lensMode === 'auto' ? 'Tap a lens to compare the same view. Auto rotates and cycles.' : 'This lens is rotating. Tap another lens to hold and compare.')
+      : 'View held for comparison. Dim entities still exist. Play resumes motion.';
   }
   function syncLens() {
     lensLabel.textContent = lensFrom !== lensTo && lensProgress < 1
       ? lenses[lensFrom].name+' → '+lenses[lensTo].name
-      : lenses[lensTo].name+' · '+lenses[lensTo].detail;
+      : lenses[lensTo].name+': '+lenses[lensTo].question;
+    lensDetail.textContent = lenses[lensTo].detail;
+    for (const button of lensButtons) button.setAttribute('aria-pressed',String(button.dataset.lens === lensMode));
   }
   function setLens(target, instant = false) {
     lensFrom = lensProgress < 0.5 ? lensFrom : lensTo;
@@ -1454,7 +1468,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     if (lensProgress < 1) {
       lensProgress = Math.min(1,lensProgress+dt/4.5);
       if (lensProgress === 1) { lensFrom=lensTo; lensHold=0; syncLens(); }
-    } else if (lens.value === 'auto') {
+    } else if (lensMode === 'auto') {
       lensHold += dt;
       if (lensHold >= 5) setLens((lensTo+1)%lenses.length);
     }
@@ -1475,6 +1489,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     gl.uniform1f(locations.time,time);
     gl.uniform3f(locations.lensState,lensFrom,lensTo,lensProgress);
     gl.uniform1f(locations.signalTime,signalTime);
+    gl.uniform1f(locations.pulseEnabled,running || burstUntil > 0 ? 1 : 0);
     gl.uniform2f(locations.orbit,yaw,pitch);
     gl.drawArrays(gl.TRIANGLES,0,3);
     dirty = false;
@@ -1485,7 +1500,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     const dt = lastTick ? Math.min((now-lastTick)/1000,0.12) : 0;
     lastTick = now;
     if (running) { time += dt; signalTime += dt; advanceLens(dt); }
-    else if (burstUntil > 0) { signalTime += dt; burstUntil -= dt; }
+    else if (burstUntil > 0) { signalTime += dt; burstUntil=Math.max(0,burstUntil-dt); if(burstUntil===0)dirty=true; }
     if (dirty || ((running || burstUntil>0) && now-lastDraw >= 1000/30)) { draw(); lastDraw=now; }
     if (running || burstUntil>0) schedule();
   }
@@ -1497,7 +1512,8 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     program=null;
     error.hidden=false;
     error.textContent=message;
-    play.disabled=thought.disabled=lens.disabled=true;
+    play.disabled=thought.disabled=true;
+    for (const button of lensButtons) button.disabled=true;
   }
   try {
     gl=canvas.getContext('webgl',{alpha:false,antialias:false,depth:false,stencil:false,preserveDrawingBuffer:true});
@@ -1514,7 +1530,7 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     const position=gl.getAttribLocation(program,'position');
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
-    locations=Object.fromEntries(['resolution','time','lensState','signalTime','orbit','paper','ink','conceptColor','associationColor','activationColor','greenColor','redColor','yellowColor'].map(name=>[name,gl.getUniformLocation(program,name)]));
+    locations=Object.fromEntries(['resolution','time','lensState','signalTime','pulseEnabled','orbit','paper','ink','conceptColor','associationColor','activationColor','greenColor','redColor','yellowColor'].map(name=>[name,gl.getUniformLocation(program,name)]));
     syncControls(); syncTheme(); resize();
     new ResizeObserver(resize).observe(canvas);
     new MutationObserver(syncTheme).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
@@ -1522,10 +1538,21 @@ html>body{box-sizing:border-box;padding:20px;margin:0 auto;width:min(100%,860px,
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change',syncTheme);
     new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;lastTick=0;schedule();}).observe(canvas);
     document.addEventListener('visibilitychange',()=>{lastTick=0;schedule();});
-    play.addEventListener('click',()=>{running=!running;burstUntil=0;lastTick=0;syncControls(true);schedule();});
-    lens.addEventListener('change',()=>{
-      if (lens.value === 'auto') { lensHold=0; syncLens(); }
-      else setLens(Number(lens.value),!running || reduced.matches);
+    play.addEventListener('click',()=>{running=!running;burstUntil=0;lastTick=0;dirty=true;syncControls(true);schedule();});
+    for (const button of lensButtons) button.addEventListener('click',()=>{
+      lensMode=button.dataset.lens;
+      burstUntil=0;
+      lastTick=0;
+      if (lensMode === 'auto') {
+        running=!reduced.matches;
+        setLens(lensTo,true);
+      } else {
+        // Taps are immediate, even on a slow phone. Freeze the same pose so
+        // users can compare lenses without camera motion or pulses masking it.
+        running=false;
+        setLens(Number(lensMode),true);
+      }
+      syncControls();
     });
     thought.addEventListener('click',()=>{
       signalTime=0;
