@@ -2,6 +2,8 @@
 
 An interactive 3D knowledge constellation: 25 networks and 4,371 persistent synthetic entities, with a larger central cluster.
 
+The site's **For your AI** link opens the [Markdown companion](https://denson.github.io/ontology-lenses/guide.md), with definitions, a worked example, and a prompt you can share with an assistant. You can also [read it in this repository](guide.md).
+
 Explore three illustrative lenses over the same entities:
 
 - **Structure:** classification and grouping.
